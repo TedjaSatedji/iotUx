@@ -218,7 +218,7 @@ export default function DeviceDetailScreen() {
         </Card>
 
         {/* Map Card */}
-        {deviceStatus && deviceStatus.lat != null && deviceStatus.lon != null ? (
+        {deviceStatus && deviceStatus.lat != null && deviceStatus.lon != null && !(deviceStatus.lat === 0 && deviceStatus.lon === 0) ? (
           <Card style={styles.mapCard} padding={0}>
             <MapComponent
               latitude={deviceStatus.lat}
@@ -234,7 +234,11 @@ export default function DeviceDetailScreen() {
           </Card>
         ) : (
           <Card style={styles.mapCard}>
-            <Text style={styles.noLocation}>No location data available</Text>
+            <Text style={styles.noLocation}>
+              {deviceStatus && deviceStatus.lat === 0 && deviceStatus.lon === 0 
+                ? 'Location unavailable, Searching for GPS' 
+                : 'No location data available'}
+            </Text>
           </Card>
         )}
 
