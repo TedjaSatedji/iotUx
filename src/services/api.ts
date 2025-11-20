@@ -1,5 +1,5 @@
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { API_BASE_URL } from '../constants/theme';
 
 const AUTH_TOKEN_KEY = '@iotux_auth_token';
