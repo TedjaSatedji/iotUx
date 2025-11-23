@@ -63,7 +63,7 @@ export default function DeviceDetailScreen() {
       if (statusData && !isTogglingRef.current) {
         setDeviceStatus(statusData);
         
-        // Update last valid location if we have valid coordinates
+        // Update last valid location if we have valid coordinates from current status
         if (statusData.lat != null && statusData.lon != null && 
             !(statusData.lat === 0 && statusData.lon === 0)) {
           setLastValidLocation({
@@ -73,8 +73,36 @@ export default function DeviceDetailScreen() {
           });
         }
       }
+      
       if (Array.isArray(alertsData)) {
         setAlerts([...alertsData].reverse()); // Show newest first safely
+        
+        // Whenever current status has no valid location, check alerts for last valid location
+        if (statusData && (statusData.lat == null || statusData.lon == null || 
+            (statusData.lat === 0 && statusData.lon === 0))) {
+          // Find the most recent alert with valid (non-zero) coordinates
+          // alertsData is already in order from API (oldest to newest), so find from the end
+          const validAlert = [...alertsData].reverse().find(alert => 
+            alert.lat != null && alert.lon != null && 
+            !(alert.lat === 0 && alert.lon === 0)
+          );
+          
+          if (validAlert && validAlert.created_at) {
+            const alertDate = new Date(validAlert.created_at);
+            console.log('Setting last valid location:', {
+              lat: validAlert.lat,
+              lon: validAlert.lon,
+              created_at: validAlert.created_at,
+              parsedDate: alertDate,
+              now: new Date(),
+            });
+            setLastValidLocation({
+              lat: validAlert.lat!,
+              lon: validAlert.lon!,
+              timestamp: alertDate,
+            });
+          }
+        }
       }
       
       setAlertsPage(1);
@@ -195,6 +223,13 @@ export default function DeviceDetailScreen() {
                             deviceStatus.lon != null && 
                             !(deviceStatus.lat === 0 && deviceStatus.lon === 0);
   
+  console.log('DeviceDetailScreen - Display Logic:', {
+    hasCurrentLocation,
+    deviceStatusLat: deviceStatus?.lat,
+    deviceStatusLon: deviceStatus?.lon,
+    lastValidLocation,
+  });
+  
   const displayLocation = hasCurrentLocation 
     ? { lat: deviceStatus.lat!, lon: deviceStatus.lon!, isCurrent: true }
     : lastValidLocation 
@@ -267,24 +302,33 @@ export default function DeviceDetailScreen() {
 
         {/* Map Card */}
         {displayLocation ? (
-          <Card style={styles.mapCard} padding={0}>
-            <MapComponent
-              latitude={displayLocation.lat}
-              longitude={displayLocation.lon}
-              deviceId={deviceId || ''}
-              lastStatus={deviceStatus?.last_status || undefined}
-            />
-            <View style={styles.mapOverlay}>
-              <Text style={[styles.coordinates, { color: themedColors.text }]}>
-                📍 {displayLocation.lat.toFixed(6)}, {displayLocation.lon.toFixed(6)}
-              </Text>
-              {!displayLocation.isCurrent && displayLocation.timestamp && (
-                <Text style={[styles.lastLocationTime, { color: themedColors.textSecondary }]}>
-                  ⏱️ Last known location from {formatLocationTime(displayLocation.timestamp)}
+          <>
+            <Card style={styles.mapCard} padding={0}>
+              <MapComponent
+                latitude={displayLocation.lat}
+                longitude={displayLocation.lon}
+                deviceId={deviceId || ''}
+                lastStatus={deviceStatus?.last_status || undefined}
+              />
+              <View style={styles.mapOverlay}>
+                <Text style={[styles.coordinates, { color: themedColors.text }]}>
+                  📍 {displayLocation.lat.toFixed(6)}, {displayLocation.lon.toFixed(6)}
                 </Text>
-              )}
-            </View>
-          </Card>
+              </View>
+            </Card>
+            
+            {/* Old Location Warning */}
+            {!displayLocation.isCurrent && displayLocation.timestamp && (
+              <Card style={styles.locationWarningCard}>
+                <View style={styles.locationWarning}>
+                  <Text style={styles.locationWarningIcon}>⏱️</Text>
+                  <Text style={[styles.locationWarningText, { color: themedColors.text }]}>
+                    Showing last known location from {formatLocationTime(displayLocation.timestamp)}
+                  </Text>
+                </View>
+              </Card>
+            )}
+          </>
         ) : (
           <Card style={styles.mapCard}>
             <Text style={[styles.noLocation, { color: themedColors.textSecondary }]}>
@@ -463,13 +507,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  lastLocationTime: {
+  locationWarningCard: {
+    marginBottom: SPACING.md,
+    backgroundColor: 'rgba(255, 165, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 165, 0, 0.4)',
+  },
+  locationWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  locationWarningIcon: {
+    fontSize: FONT_SIZES.xl,
+  },
+  locationWarningText: {
+    flex: 1,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
     color: COLORS.white,
-    fontSize: FONT_SIZES.xs,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginTop: SPACING.xs / 2,
-    opacity: 0.9,
   },
   controlCard: {
     marginBottom: SPACING.md,
