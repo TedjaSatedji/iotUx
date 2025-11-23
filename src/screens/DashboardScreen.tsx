@@ -3,27 +3,28 @@ import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Modal,
-    RefreshControl,
-    StatusBar as RNStatusBar,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Modal,
+  RefreshControl,
+  StatusBar as RNStatusBar,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { AuroraWaves } from '../components/common/AuroraWaves';
 import { Card } from '../components/common/Card';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { BORDER_RADIUS, COLORS, FONT_SIZES, SPACING, getThemedColors } from '../constants/theme';
+import { BORDER_RADIUS, COLORS, FONT_SIZES, getThemedColors, SPACING } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { authAPI, Device, deviceAPI, DeviceCurrentStatus } from '../services/api';
 import { NetworkService } from '../utils/network-utils';
-import { useTheme } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -36,6 +37,7 @@ export default function DashboardScreen() {
     new Map()
   );
   const [user, setUser] = useState<any>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
@@ -99,6 +101,12 @@ export default function DashboardScreen() {
       
       setUser(userData);
       setDevices(devicesData);
+      
+      // Load profile image
+      const savedProfileImage = await AsyncStorage.getItem('@profile_image');
+      if (savedProfileImage) {
+        setProfileImage(savedProfileImage);
+      }
 
       // Load status for each device
       const statusPromises = devicesData.map((device) =>
@@ -289,21 +297,48 @@ export default function DashboardScreen() {
         >
           {/* Header Section */}
           <View style={styles.header}>
-            <View>
-              <Text style={styles.date}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </Text>
-              <Text style={[styles.greeting, { color: themedColors.textSecondary }]}>Welcome back,</Text>
-              <Text style={[styles.userName, { color: themedColors.text }]}>{user?.name || 'Pilot'}</Text>
+            <View style={styles.userInfoContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.profileImageContainer,
+                  { borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)' }
+                ]}
+                onPress={() => router.push('/profile')}
+                activeOpacity={0.7}
+              >
+                {profileImage ? (
+                  <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                ) : (
+                  <BlurView intensity={50} tint={isDark ? 'light' : 'dark'} style={[
+                    styles.profileImageBlur,
+                    { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
+                  ]}>
+                    <Text style={[styles.profileImageText, { color: themedColors.text }]}>
+                      {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </Text>
+                  </BlurView>
+                )}
+              </TouchableOpacity>
+              <View>
+                <Text style={styles.date}>
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </Text>
+                <Text style={[styles.greeting, { color: themedColors.textSecondary }]}>Welcome back,</Text>
+                <Text style={[styles.userName, { color: themedColors.text }]}>{user?.name || 'Pilot'}</Text>
+              </View>
             </View>
             <TouchableOpacity 
-              style={styles.avatarContainer}
+              style={[
+                styles.logoutButton,
+                { borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)' }
+              ]}
               onPress={handleLogout}
             >
-              <BlurView intensity={50} tint="light" style={styles.avatarBlur}>
-                <Text style={styles.avatarText}>
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </Text>
+              <BlurView intensity={50} tint={isDark ? 'light' : 'dark'} style={[
+                styles.logoutButtonBlur,
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
+              ]}>
+                <Text style={[styles.logoutButtonText, { color: themedColors.text }]}>Logout</Text>
               </BlurView>
             </TouchableOpacity>
           </View>
@@ -561,24 +596,45 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xxxl,
     fontWeight: 'bold',
   },
-  avatarContainer: {
+  userInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  profileImageContainer: {
     width: 50,
     height: 50,
     borderRadius: 25,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
   },
-  avatarBlur: {
+  profileImage: {
+    width: 50,
+    height: 50,
+  },
+  profileImageBlur: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  avatarText: {
-    color: COLORS.white,
+  profileImageText: {
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
+  },
+  logoutButton: {
+    borderRadius: BORDER_RADIUS.full,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  logoutButtonBlur: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutButtonText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
   },
   sectionHeader: {
     flexDirection: 'row',
